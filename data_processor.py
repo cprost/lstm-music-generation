@@ -47,7 +47,7 @@ def get_song_pitches():
                 signature = elem.ratioString
 
             elif isinstance(elem, (m21.note.Note, m21.note.Rest)):
-
+                note = None
                 # drop inexpressible rests
                 if isinstance(elem, m21.note.Rest) and elem.duration.type is not 'inexpressible':
                     note = 'rest'
@@ -79,10 +79,53 @@ def get_song_pitches():
 
     return song_data, pitches, tempos
 
-song_data, pitches, tempos = get_song_pitches()
 
-# get amount of pitch names
-pitch_count = len(pitches)
-song_count = len(song_data)
+def create_sequences(song_data, pitches, pitch_count, seq_len=50): 
+    data_in = []  # list of sequence lists
+    data_out = []  # list of individual notes immediately after each data_in[] sequence
 
-print('\nTotal unique pitches: {}'.format(pitch_count))
+    # https://machinelearningmastery.com/how-to-one-hot-encode-sequence-data-in-python/
+    # keras one-hot encoding only allows int input, keep as dict instead 
+    pitch_to_int = dict((pitch, number) for number, pitch in enumerate(pitches))
+
+    print(pitch_count)
+    print(len(pitches))
+
+    for song in song_data:
+        song_notes = len(song)
+        # summer += song_notes
+        
+        for i in range(0, song_notes - seq_len):
+            # get seq_len total pitches as integer input sequence
+            seq_in = song[i : i+seq_len]
+            seq_in = [pitch_to_int[pitch] for pitch in seq_in]
+
+            # get the next 1 token after the seq_len tokens as the output
+            seq_out = song[i + seq_len]
+            seq_out = pitch_to_int[seq_out]
+
+            data_in.append(seq_in)
+            data_out.append(seq_out)
+    
+    seq_count = len(data_in)  # sanity check
+    print(seq_count, 'total sequences')
+
+    data_in = np.divide(data_in, pitch_count)
+
+    return data_in, data_out
+
+if __name__ == '__main__':
+    # song_data, pitches, tempos = get_song_pitches()
+
+    with open('data/midi_data', 'rb') as file:
+        song_data = pickle.load(file)
+        pitches = pickle.load(file)
+
+    # # get amount of pitch names
+    pitch_count = len(pitches)
+    song_count = len(song_data)
+
+    print('\nTotal unique pitches: {}'.format(pitch_count))
+    print('Total songs: {}'.format(song_count))
+
+    create_sequences(song_data, pitches, pitch_count)
